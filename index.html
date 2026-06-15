@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Street Light Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;font-family:Arial,sans-serif}
+#scene{width:100vw;height:100vh;position:relative;transition:background 1s ease}
+#skyObject{position:absolute;font-size:60px;z-index:5;transition:left .2s linear,top .2s linear}
+.star{position:absolute;color:white;opacity:0;transition:opacity 1s}
+#panel{position:absolute;top:20px;left:20px;background:rgba(255,255,255,.9);padding:15px;border-radius:12px;z-index:10}
+#ground{position:absolute;bottom:0;width:100%;height:180px;background:#2f6d31}
+#road{position:absolute;bottom:70px;width:100%;height:60px;background:#333}
+#road:after{content:"";position:absolute;top:28px;width:100%;height:4px;background:repeating-linear-gradient(to right,#fff 0 40px,transparent 40px 80px)}
+.tree{position:absolute;bottom:150px;font-size:70px}
+#tree1{left:120px} #tree2{right:120px}
+#pole{position:absolute;bottom:130px;left:50%;width:10px;height:280px;background:#111;transform:translateX(-50%)}
+#arm{position:absolute;bottom:400px;left:50%;width:90px;height:10px;background:#111}
+#lamp{position:absolute;bottom:380px;left:calc(50% + 80px);width:36px;height:36px;border-radius:50%;background:#777;transition:.5s}
+#clockContainer{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);text-align:center;z-index:10}
+#clock{width:220px;height:220px;border:8px solid #000;border-radius:50%;background:#fff;position:relative}
+#centerDot{width:14px;height:14px;background:#000;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+#hand{width:5px;height:90px;background:red;position:absolute;left:50%;bottom:50%;transform-origin:bottom center}
+.number{position:absolute;font-weight:bold}
+.n12{top:8px;left:50%;transform:translateX(-50%)}
+.n3{right:8px;top:50%;transform:translateY(-50%)}
+.n6{bottom:8px;left:50%;transform:translateX(-50%)}
+.n9{left:8px;top:50%;transform:translateY(-50%)}
+</style>
+</head>
+<body>
+<div id="scene">
+<div id="skyObject">☀️</div>
+
+<div id="panel">
+<h2>Smart Street Light</h2><br>
+Time: <span id="timeText"></span><br><br>
+Environment: <span id="envText"></span><br><br>
+PWM: <span id="pwmText"></span>
+</div>
+
+<div class="tree" id="tree1">🌳</div>
+<div class="tree" id="tree2">🌳</div>
+
+<div id="pole"></div>
+<div id="arm"></div>
+<div id="lamp"></div>
+
+<div id="road"></div>
+<div id="ground"></div>
+
+<div id="clockContainer">
+<h3>Drag Around The Clock</h3><br>
+<div id="clock">
+<div class="number n12">12</div>
+<div class="number n3">3</div>
+<div class="number n6">6</div>
+<div class="number n9">9</div>
+<div id="hand"></div>
+<div id="centerDot"></div>
+</div>
+</div>
+</div>
+
+<script>
+const scene=document.getElementById("scene");
+const hand=document.getElementById("hand");
+const clock=document.getElementById("clock");
+const lamp=document.getElementById("lamp");
+const skyObject=document.getElementById("skyObject");
+const timeText=document.getElementById("timeText");
+const envText=document.getElementById("envText");
+const pwmText=document.getElementById("pwmText");
+
+for(let i=0;i<60;i++){
+ let s=document.createElement("div");
+ s.className="star";
+ s.innerHTML="✦";
+ s.style.left=Math.random()*100+"vw";
+ s.style.top=Math.random()*55+"vh";
+ s.style.fontSize=(8+Math.random()*12)+"px";
+ scene.appendChild(s);
+}
+
+let currentTime=12;
+let dragging=false;
+
+clock.addEventListener("mousedown",()=>dragging=true);
+document.addEventListener("mouseup",()=>dragging=false);
+
+document.addEventListener("mousemove",e=>{
+ if(!dragging)return;
+ const r=clock.getBoundingClientRect();
+ const cx=r.left+r.width/2;
+ const cy=r.top+r.height/2;
+ const dx=e.clientX-cx;
+ const dy=e.clientY-cy;
+ let ang=Math.atan2(dy,dx)*180/Math.PI+90;
+ if(ang<0)ang+=360;
+ currentTime=(ang/360)*24;
+ updateScene();
+});
+
+function updateScene(){
+ let t=currentTime;
+ let rot=(t/24)*360;
+ hand.style.transform=`translateX(-50%) rotate(${rot}deg)`;
+
+ let pwm=0, env="Day";
+
+if(t>=6 && t<17)
+{
+    env="Day";
+    pwm=0;
+
+    scene.style.background=
+    "linear-gradient(to bottom,#6ec6ff,#dff6ff)";
+}
+
+else if(t>=17 && t<19)
+{
+    env="Sunset";
+    pwm=64;
+
+    scene.style.background=
+    "linear-gradient(to bottom,#ff9966,#ffd194)";
+}
+
+else if(t>=19 && t<22)
+{
+    env="Night";
+    pwm=192;
+
+    scene.style.background=
+    "linear-gradient(to bottom,#273c75,#40739e)";
+}
+
+else if(t>=22 || t<4)
+{
+    env="Late Night";
+    pwm=255;
+
+    scene.style.background=
+    "linear-gradient(to bottom,#000428,#004e92)";
+}
+
+else
+{
+    env="Sunrise";
+    pwm=128;
+
+    scene.style.background=
+    "linear-gradient(to bottom,#ffb347,#87CEEB)";
+}
+
+ let glow=(pwm/255)*120;
+ lamp.style.background=(pwm===0?"#777":"#fff4a8");
+ lamp.style.boxShadow=(pwm===0?"none":`0 0 ${glow}px ${glow/2}px yellow`);
+
+ let h=Math.floor(t), m=Math.floor((t-h)*60);
+ let ampm=h>=12?"PM":"AM";
+ let disp=h%12; if(disp===0) disp=12;
+ timeText.textContent=`${disp}:${String(m).padStart(2,'0')} ${ampm}`;
+ envText.textContent=env;
+ pwmText.textContent=pwm;
+
+ const orbit=((t-6)/24)*360;
+ const radius=320;
+ const cx=window.innerWidth/2;
+ const cy=350;
+
+ const x=cx+radius*Math.cos((orbit-90)*Math.PI/180);
+ const y=cy+radius*Math.sin((orbit-90)*Math.PI/180);
+
+ skyObject.style.left=x+"px";
+ skyObject.style.top=y+"px";
+ skyObject.innerHTML=(t>=6 && t<18)?"☀️":"🌙";
+
+ document.querySelectorAll(".star").forEach(st=>{
+   st.style.opacity=(t>=19 || t<6)?1:0;
+ });
+}
+
+updateScene();
+</script>
+</body>
+</html>
